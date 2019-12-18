@@ -1,0 +1,822 @@
+<!doctype html>
+
+<html>
+
+<head>
+
+<style>
+
+#game_canvas
+{
+position:fixed;
+width:100vw;
+height:100vh;
+top:0vh;
+left:0vw;
+z-index: -1;
+background-color:#800f;
+}
+#stamina
+{
+position: fixed;
+top:10px;
+left:10px;
+width: 100px;
+height: 25px;
+background-color: red;
+}
+#acceleratorTrap
+{
+position: fixed;
+top:10px;
+left: 73%;
+width: 100px;
+height: 25px;
+background-color: red;
+}
+#options_div
+{
+position:fixed;
+width:30vw;
+height:20vh;
+right:0vw;
+bottom:0vh;
+background-color: #7a35;
+color:white;
+font-size:20px;
+overflow-y: auto;
+}
+#options_div input
+{
+position:relative;
+width:20vw;
+height:10vh;
+left:5vw;
+background-color: #a375;
+border:1px solid black;
+color:white;
+}
+#options_div button
+{
+position:relative;
+width:20vw;
+height:10vh;
+left:5vw;
+background-color: #a375;
+border:1px solid black;
+color:white;
+}
+#fps_counter
+{
+position:fixed;
+width:25vw;
+height:10vh;
+top:0vh;
+left:38%;
+display: flex;
+flex-direction: column;
+justify-content: center;
+background-color: #083f;
+border-radius: 20%;
+color:white;
+font-size:50px;
+text-align:center;
+}
+
+
+</style>
+
+<title>3Dsnake</title>
+
+</head>
+
+<body>
+
+<canvas id="game_canvas"></canvas>
+
+<div id="fps_counter">1000</div>
+
+<div id="stamina"></div>
+
+<id id="acceleratorTrap"></id>
+
+<!-- <div id="options_div">
+<input id="value_1" type="range" value="1" min="20" max="90" onchange="input_variables[this.id]=this.value;console.log(this.value);">FOV
+</div> -->
+
+</body>
+
+<!-- <script src="three/build/three.js"></script> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+<script src="js/SpaceControls.js"></script>
+<script src="js/ImprovedNoise.js"></script>
+
+
+
+<script type="text/javascript">
+
+  ////////VARIABLES GLOBALES OBLIGATOIRES////////
+
+  //REPRESENTE LE MONDE EN 3D
+  var scene = null;
+  //MON PERSONNAGE AUQUEL J'AJOUTE LES CONTROLS (PEUT ETRE MA CAMERA SI JE VEUX UN FPS)
+  var character = null;
+  //CAMERA
+  var camera = null;
+  //LE RENDERER DE THREEJS
+  var renderer = null;
+  //LES CONTROLS
+  var controls = null;
+  //LES LUMIERES DANS MA SCENE
+  var lights = [];
+  //UN TABLEAU QUI CONTIENDRA DES VARIABLES, QUE VOUS POUVEZ MODIFIER AVEC LES BOUTONS/INPUT EN BAS A DROITE DE L'ECRAN
+  var input_variables = [];
+  //LE TEMPS ENTRE DEUX AFFICHAGE
+  var delta_time = 0;
+  //L'HEURE DU DERNIER AFFICHAGE
+  var last_time = Date.now();
+  //RAYCASTER OUR CALCULER LES INTERSECTIONS
+  var raycaster = null;
+  //LES FPS
+  var fps = 0;
+  // Compteur de balle avant generation d'une nouvelle balle
+  var counter = 0;
+  //UN TRUC QUE J'EXPLIQUE PLUS TARD
+  var pointerlockchange;
+  var pointerlockerror;
+  //LES OBJETS
+  var objects = [];
+  var terrain = null;
+  
+
+  jumpTime = 0;
+  const JUMPSTAMINA = 1000;
+  jumpState = false;
+
+  acceleratorTrap = false;
+  acceleratorTrapStart = 0;
+  const ACCELERATOR_DURATION = 5000;
+  
+
+  //Rayon du monde;
+  const RADIUS = 500;
+  //Nombre initial de generation de pomme
+  const NB_GEN = 60;
+  //Coefficient de gravite
+  const COEF_SCALAR = 0.00003
+
+  vecOrigin = new THREE.Vector3(0,0,0);
+
+  // gravite du serpent
+  gravity_snake = new THREE.Vector3(0,0,0)
+
+  //Gravity camera 
+  gravity_camera = new THREE.Vector3(0,0,0)
+  // Tableau de toutes les pommes
+  worldApples = []
+  // Tableau des pommes recuperee par le serpent 
+  appleTab = []
+  // apple piege
+  trapApple = []
+  // Tableau de la queue du serpent
+  tail = []
+  // Coeeficient de la taille de la tete du serpent
+  coefScale = 2.5
+  // Rayon initial de la tete du serpent
+  headRad = 20
+  // Etat du jeu
+  state = ""
+
+      
+
+  //ON VA SE SERVIR DE CA POUR GENERER DU BRUIT EN 1D/2D/3D
+  // var noise_xyz = ImprovedNoise();
+
+
+  //ICI ON LANCE LE CODE
+  init();
+  animation();
+
+
+  //FONCTION QU'ON LANCE EN PREMIER POUR INITIALISER NOS VARIABLES GLOBALES
+  function init(){
+
+    //POUR BLOQUER LA SOURIS QUAND ON CLIQUE SUR L'ECRAN
+    //APPUYER SUR ECHAP POUR SORTIR DU POINTERLOCK
+    pointerlockConfiguration();
+
+    //ON CREE LA SCENE
+    scene = new THREE.Scene();
+
+    //ON CREE UNE CAMERA PERSPECTIVE (JE VOUS LAISSE VOUS RENSEIGNER)
+    camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.01, 100000);
+
+    //On crée notre renderer WebGL
+    renderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById("game_canvas"),
+      sortObjects: true,
+      antialias: true,
+      localClippingEnabled: false,  
+      powerPreference: "high-performance",
+      logarithmicDepthBuffer: true,
+      precision: "highp"
+    });
+    renderer.setPixelRatio(1.0);
+    renderer.setSize(window.innerWidth * 1.0, window.innerHeight * 1.0);
+    renderer.setClearColor(new THREE.Color(0xff0088ff), 0.0);
+
+    //ON AJOUTE LA CAMERA A LA SCENE
+    scene.add(camera);
+    //ON RECULE UN PEU LA CAMERA (INITIALEMENT, ELLE EST EN (0,0,0) (COMME TOUS LES OBJECTS D'AILLERUS) )
+    camera.position.set(0,0,-1000);
+
+    //CAMERA.LOOKAT(VECTEUR) FAIT QUE LA CAMERA VISE UN POINT DANS L'ESPACE (ICI, (0,0,0) )
+    camera.lookAt(vecOrigin);
+
+
+    //J'AJOUTE DE LA LUMIERE SUR LA CAMERA
+    //SI JE VOULAIS, JE POURRAI L'AJOUTER A LA SCENE: ELLE AURAIT UNE POSITION, QU'ON PEUT MODIFIER (light.position.x = 50;)
+    var light = new THREE.PointLight("white",4,5000,2);
+    camera.add(light);
+    lights.push(light);
+
+    //ON AJOUTE UNE LUMIERE AMBIANTE
+    var ambient_light = new THREE.AmbientLight(new THREE.Color("yellow"), 0.38);
+    scene.add(ambient_light);
+    lights.push(ambient_light);
+
+    raycaster = new THREE.Raycaster();
+
+    //LES CONTROLES: POUR LE MOMENT JE NE RENTRE PAS DANS LE DETAIL
+    var vectors_haut_bas_gauche_droite_avant_arriere = [];
+    var gravity_vector_avant = new THREE.Vector3(0, 0, +1);
+    var gravity_vector_arriere = new THREE.Vector3(0, 0, -1);
+    var gravity_vector_gauche = new THREE.Vector3(-1, 0, 0);
+    var gravity_vector_droite = new THREE.Vector3(+1, 0, 0);
+    var gravity_vector_haut = new THREE.Vector3(0, -1, 0);
+    var gravity_vector_bas = new THREE.Vector3(0, +1, 0);
+    vectors_haut_bas_gauche_droite_avant_arriere.push(gravity_vector_avant);
+    vectors_haut_bas_gauche_droite_avant_arriere.push(gravity_vector_arriere);
+    vectors_haut_bas_gauche_droite_avant_arriere.push(gravity_vector_bas);
+    vectors_haut_bas_gauche_droite_avant_arriere.push(gravity_vector_haut);
+    vectors_haut_bas_gauche_droite_avant_arriere.push(gravity_vector_droite);
+    vectors_haut_bas_gauche_droite_avant_arriere.push(gravity_vector_gauche);
+  
+
+    snakeHead = snakeHead();
+    snakeHead.position.x = 0;
+    snakeHead.position.y = 0;
+    snakeHead.position.z = -RADIUS;
+    scene.add(snakeHead);
+    character = snakeHead;
+    controls = new SpaceControls( character, vectors_haut_bas_gauche_droite_avant_arriere );
+
+    //ON CREE UNE GEOMETRY
+    //POUR LE TERRAIN, ON PREND PLANEGEOMETRY, MAIS IL EN EXISTE BEAUCOUP D'AUTRES PROPOSEES PAR THREEJS
+    //VOUS POUVEZ MEME CREER VOTRE PROPRE GEOMETRY, EN PARTANT DE my_vertices = [], my_faces = [], ajouter des vertices et faces,
+    //PUIS A LA FIN FAIRE geometry.vertices = my_vertices; geometry.faces = my_faces;
+    // var geometry = new THREE.PlaneGeometry(2000,2000,68,68);
+    var geometry = new THREE.IcosahedronGeometry(RADIUS,5);
+    //var geometry = new THREE.BoxGeometry(1000,1000,1000,10,10,10);
+
+    geometry.computeFaceNormals();
+
+    //ON CREE UN MATERIAL
+    // var material = new THREE.MeshBasicMaterial({wireframe: true, vertexColors: "white", side: THREE.DoubleSide});
+    //var material = new THREE.MeshLambertMaterial({wireframe: false, vertexColors: THREE.FaceColors, side: THREE.DoubleSide});
+    //var material = new THREE.MeshPhongMaterial({wireframe: false, vertexColors: THREE.FaceColors, side: THREE.DoubleSide});
+    var material = new THREE.MeshPhysicalMaterial({wireframe: true, color: "blue" , vertexColors: "blue", side: THREE.DoubleSide});
+    //var material = new THREE.MeshStandardMaterial({wireframe: false, vertexColors: THREE.FaceColors, side: THREE.DoubleSide});
+    //var material = new THREE.MeshPhysicalMaterial({wireframe: false, color: "red", side: THREE.DoubleSide});
+
+    //ON CREE NOTRE TERRAIN, CONSTITUE D'UNE GEOMETRY ET D'UN MATERIAL
+    terrain = new THREE.Mesh(geometry,material);
+  
+
+    scene.add(terrain);
+
+    // GENERATION DES PREMIERES POMMES
+    for (var i = 0; i < NB_GEN; i++){
+      var currApple = createApple()
+      var isTrap = false
+      if (Math.random() < 0.2){
+        currApple = createAppleAccelerator()
+      }
+      // random initial position sur les coordonnées negatives et positives
+      currApple.obj3D.position.x = (Math.random() - 0.5);
+      currApple.obj3D.position.y = (Math.random() - 0.5);
+      currApple.obj3D.position.z = (Math.random() - 0.5);
+      currApple.obj3D.position.setLength(RADIUS+1000);
+
+      var gravity_apple = new THREE.Vector3(0,0,0);
+      // console.log(currApple)
+      worldApples.push({obj3D: currApple.obj3D, dim: currApple.dim});
+      scene.add(currApple.obj3D);
+    }
+    console.log(worldApples);
+  }
+  function snakeHead() {
+
+    var head = new THREE.Object3D();
+
+    var snakeHead_Geo = new THREE.SphereGeometry( headRad*coefScale, 32, 15 );
+    var snakeHead_Mat = new THREE.MeshBasicMaterial({ color: "#32CD32"});
+
+    var snakeEye1_Geo = new THREE.DodecahedronGeometry(5*coefScale,1);
+    var snakeEye1_Mat = new THREE.MeshPhongMaterial({ color: "black"});
+
+    var snakeEye2_Geo = new THREE.DodecahedronGeometry(5*coefScale,1);
+    var snakeEye2_Mat = new THREE.MeshPhongMaterial({ color: "black"});
+
+    var tongue_Geob = new THREE.CylinderGeometry( 2*coefScale, 2*coefScale, 20*coefScale, 32 )
+    var tongue_Matb = new THREE.MeshPhongMaterial({color: "red"});
+
+    var noze_Geo1 = new THREE.DodecahedronGeometry(3*coefScale,1);
+    var noze_Mat1 = new THREE.MeshBasicMaterial({color: "black"});
+    var noze_Geo2 = new THREE.DodecahedronGeometry(3*coefScale,1);
+    var noze_Mat2 = new THREE.MeshBasicMaterial({color: "black"});
+
+    var mouth_Geo = new THREE.CircleGeometry(15*coefScale,32);
+    var mouth_Mat = new THREE.MeshBasicMaterial({color: "black", side: THREE.DoubleSide});
+
+    var tongue_Geo1 = new THREE.ConeGeometry( 2*coefScale, 10*coefScale, 32 )
+    var tongue_Mat1 = new THREE.MeshPhongMaterial({color: "red"});
+
+    var tongue_Geo2 = new THREE.ConeGeometry( 2*coefScale, 10*coefScale, 32 )
+    var tongue_Mat2 = new THREE.MeshPhongMaterial({color: "red"});
+
+    var snakeHead = new THREE.Mesh(snakeHead_Geo, snakeHead_Mat);
+    var tongueb   = new THREE.Mesh(tongue_Geob, tongue_Matb);
+    var tongue1   = new THREE.Mesh(tongue_Geo1, tongue_Mat1);
+    var tongue2   = new THREE.Mesh(tongue_Geo2, tongue_Mat2);
+    var eye1      = new THREE.Mesh(snakeEye1_Geo, snakeEye1_Mat);
+    var eye2      = new THREE.Mesh(snakeEye2_Geo, snakeEye2_Mat) 
+    var noze1     = new THREE.Mesh(noze_Geo1, noze_Mat1);
+    var noze2     = new THREE.Mesh(noze_Geo2, noze_Mat2);
+    var mouth     = new THREE.Mesh(mouth_Geo, mouth_Mat)
+
+    eye1.position.y += 13*coefScale
+    eye2.position.y += 13*coefScale
+
+    noze1.position.y += 7*coefScale
+    noze2.position.y += 7*coefScale
+
+    mouth.position.z -=10*coefScale
+    mouth.position.y +=7*coefScale
+    mouth.rotation.x += Math.PI/2
+    mouth.rotation.x -= Math.PI/5
+
+    eye1.position.z -= 10*coefScale
+    eye2.position.z -= 10*coefScale
+
+    noze1.position.z -= 16*coefScale
+    noze2.position.z -= 16*coefScale
+
+    noze1.position.x += 4*coefScale
+    noze2.position.x -= 4*coefScale
+
+    eye1.position.x += 11*coefScale
+    eye2.position.x += -11*coefScale
+
+    tongueb.position.y -=0*coefScale
+    tongue1.position.y -=0*coefScale
+    tongue2.position.y -=0*coefScale
+
+    tongueb.position.z -=20*coefScale
+    tongue1.position.z -=32*coefScale
+    tongue2.position.z -=32*coefScale
+
+    tongueb.rotation.x += Math.PI/2
+    tongue1.rotation.x += Math.PI/2
+    tongue2.rotation.x += Math.PI/2
+
+    tongue1.position.x +=-3*coefScale
+    tongue2.position.x +=3*coefScale
+
+    tongue1.rotation.z = 5*-Math.PI/4
+    tongue2.rotation.z = 5*Math.PI/4
+
+    head.add(eye1)
+    head.add(eye2)
+    head.add(snakeHead);
+    head.add(tongueb);
+    head.add(tongue1);
+    head.add(tongue2);
+    head.add(noze1)
+    head.add(noze2)
+    head.add(mouth)
+    head.rotation.y = -Math.PI;
+    head.rotation.x = -Math.PI/2;
+    return head;
+  }
+  function createApple(){
+    var rayon = 50;
+    // var mon_objet = new THREE.Object3D();
+    // var rayon = (Math.random()*15)+50;
+    var apple_Geo = new THREE.IcosahedronGeometry(rayon, 2);
+    var apple_Mat = new THREE.MeshPhongMaterial({color: "yellow"});
+    var myobj3D = new THREE.Mesh( apple_Geo, apple_Mat );
+    myobj3D.velocity = new THREE.Vector3(0,0,0);
+    appleTab.push(myobj3D)
+    return {obj3D: myobj3D, dim: rayon};
+  }
+
+  function createAppleAccelerator() {
+    var rayon = 50;
+    var apple_accelerator_Mat = new THREE.MeshToonMaterial({color: "red"});
+    var apple_accelerator_Geo = new THREE.IcosahedronGeometry(rayon, 2);
+    var myobj3D = new THREE.Mesh( apple_accelerator_Geo, apple_accelerator_Mat );
+    myobj3D.velocity = new THREE.Vector3(0,0,0);
+    trapApple.push({obj3D: myobj3D, type: "accelerator", dim: rayon})
+    return {obj3D: myobj3D, dim: rayon};
+  }
+
+  function containsApple (apple) {
+    for (var i =0; i<tail.length ; i++){
+      if (apple == tail[i].obj3D) return true
+    }
+    return false;
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+
+  //FONCTION QU'ON VA APPELER EN BOUCLE POUR FAIRE BOUGER NOS OBJETS, UPDATE LES CONTROLS ET AFFICHER LA SCENE
+  // async function animation(){
+  function animation(){
+
+    if (acceleratorTrap && Date.now() - acceleratorTrapStart > ACCELERATOR_DURATION) acceleratorTrap = false
+    
+    //LA FONCTION Date.now() NOUS DONNE LE TEMPS EN MILLISECONDES DEPUIS LE 01/01/1970
+    delta_time = Date.now() - last_time;
+    last_time = Date.now();
+    fps = parseInt(1000/delta_time);
+    fps = tail.length
+
+    // if (acceleratorTrap){
+    //   var percentFOV = Math.sin(((Date.now() - acceleratorTrapStart)/ACCELERATOR_DURATION/2)*Math.PI)
+    //   //var coefFOV = 90 
+    //   camera.fov = Math.min(160,camera.fov+40);
+    //  // camera.updateProjectionMatrix()
+    //   console.log(percentFOV)
+    // }
+    // else {
+    //   camera.fov = 90 + (camera.fov - 90) * 0.96;
+    //   camera.updateProjectionMatrix()
+    // }
+
+    /////////////////////////////////////////////
+    // Stamina Bar
+    /////////////////////////////////////////////
+
+    var stam = document.getElementById("stamina");
+    // var value_width = (Math.sin(Date.now()/1000)+1)/2;
+    var value_width = jumpState == true ? parseInt(((JUMPSTAMINA - (Date.now()-jumpTime)))) : JUMPSTAMINA
+    // console.log(value_width)
+    // stam.style.width = parseInt(100*value_width) + "px";
+    stam.style.width = value_width/2 + "px";
+    stam.style.backgroundColor = "rgb(" + (parseInt((1-(value_width/JUMPSTAMINA))*256)) + "," + (parseInt(((value_width/JUMPSTAMINA))*256))  + ",0)";
+
+    //console.log(stam.style.width)
+    // var pourcentStam = parseInt(Math.random()*stam.style.width) + " %";
+    // console.log(pourcentStam);
+    // stam.style.backgroundSize = pourcentStam; 
+
+    /////////////////////////////////////////////
+    // Accelerator Bar
+    /////////////////////////////////////////////
+
+    var accel = document.getElementById("acceleratorTrap");
+    // var value_width = (Math.sin(Date.now()/1000)+1)/2;
+    var value_width = acceleratorTrap == true ? parseInt(((ACCELERATOR_DURATION - (Date.now()-acceleratorTrapStart)))) : 0
+    // console.log(value_width)
+    // stam.style.width = parseInt(100*value_width) + "px";
+    accel.style.width = value_width/10 + "px";
+    accel.style.backgroundColor = "rgb(" + (parseInt(((value_width/JUMPSTAMINA))*256)) + "," + "0"  + ",0)";
+
+
+    /////////////////////////////////////////////
+    // Genration de pomme aléatoire dans le monde
+    /////////////////////////////////////////////
+    if (fps!=counter){
+      if (state!= "finish") {
+        var newApple = createApple()
+        // random initial position sur les coordonnées negatives et positives
+        newApple.obj3D.position.x = (Math.random() - 0.5);
+        newApple.obj3D.position.y = (Math.random() - 0.5);
+        newApple.obj3D.position.z = (Math.random() - 0.5);
+        newApple.obj3D.position.setLength(RADIUS+2000);
+
+        var gravity_apple = new THREE.Vector3(0,0,0);
+        worldApples.push({obj3D: newApple.obj3D, dim: newApple.dim});
+        scene.add(newApple.obj3D);
+        counter = fps;
+      }
+      else {
+        fps = state + " at "+ counter;
+      }
+
+    }
+
+    //////////////////////////////////////////////
+    //  TRAP MANAGER
+    //////////////////////////////////////////////
+
+    for (var i = 0; i <trapApple.length; i++){
+      var trapA = trapApple[i].obj3D;
+      var typeOfTrap = trapApple[i].type;
+      var dim = trapApple[i].dim
+      if(dim + headRad + 15> snakeHead.position.distanceTo(trapA.position) && trapApple[i].isContained == null){
+        console.log("ACCELLERATIONNNN!!")
+        trapApple[i].isContained = true;
+        if (typeOfTrap == "accelerator"){
+          acceleratorTrap= true
+          acceleratorTrapStart = Date.now()
+        }
+      }
+    }
+    console.log(trapApple.length)
+
+    //JE METS LES FPS DANS LA DIV "fps_counter"
+    document.getElementById("fps_counter").innerHTML = fps;
+
+    //ON A FAIT TOUS LES CALCULS, ON PEUT DESSINER LA SCENE
+    update_character_controls( delta_time );    
+
+    // camera.rotation.x+=0.01;
+    // camera.up
+    //var currDistance = Math.sqrt((camera.position.x)**2+(camera.position.y)**2+(camera.position.z)**2)
+
+    // camera.velocity.add(gravity_camera);
+
+    // var currDistance = camera.position.distanceTo(terrain.position);
+    // var camera_collision_planete = currDistance < (RADIUS+10) ? true : false; 
+
+    // if(camera_collision_planete) {
+    //     gravity_camera.set(0,0,0);
+    //     camera.position.setLength(RADIUS+10);
+    // } else {
+    //     gravity_camera.add(terrain.position.clone().sub(camera.position).multiplyScalar(COEF_SCALAR));
+    // }
+
+    var collision = false;
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Mise a jour vectoriel des pommes de la queue du serpent pour quelles se suivent
+    ///////////////////////////////////////////////////////////////////////////////////
+    for (var i = 0; i < tail.length; i++){
+      currObjApple = tail[i].obj3D
+      currDimApple = tail[i].dim
+
+      //Dans le cas d'une acceleration on augmente la norme des vecteurs pour que les boules arrivent mieux à se suivre
+      var norm = 0
+      if (acceleratorTrap) norm = 9000
+      else norm = 5000
+
+      if (i == 0) {
+        if (currDimApple + headRad*1.3< snakeHead.position.distanceTo(currObjApple.position)){
+          currObjApple.velocity = (snakeHead.position.clone().sub(currObjApple.position).multiplyScalar(COEF_SCALAR*norm))
+        } else {
+          currObjApple.velocity = vecOrigin;
+        }
+      } else {
+        if (currDimApple + headRad*1.3< tail[i-1].obj3D.position.distanceTo(currObjApple.position)){
+          currObjApple.velocity = (tail[i-1].obj3D.position.clone().sub(currObjApple.position).multiplyScalar(COEF_SCALAR*norm))
+        } else {
+          currObjApple.velocity = vecOrigin
+        }
+      }
+    }
+
+    /////////////////////////////////////////////////////////////
+    // Mise a jour des vecteurs pour la gravité des pommes 
+    /////////////////////////////////////////////////////////////
+    for (var i = 0; i < worldApples.length ; i++){
+      var currApple = worldApples[i];
+      var apple = currApple.obj3D;
+      var dim   = currApple.dim;
+      var apple_collision_planete = (apple.position.distanceTo(terrain.position)) < (RADIUS+dim) ? true : false;
+      if (apple_collision_planete){
+        // apple.velocity.set(0,0,0);
+        apple.velocity.multiplyScalar(-0.3+Math.random()*0.05);
+        apple.position.setLength(RADIUS+dim);
+      } else {
+        apple.velocity.add(terrain.position.clone().sub(apple.position).multiplyScalar(COEF_SCALAR*5));
+      }
+      apple.position.add(apple.velocity);
+
+      // Si la pomme collisione avec la tete du serpent et quelle n'est pas contenue dans la queue alors il faut l'ajouter
+      if (snakeHead.position.distanceTo(apple.position) <= dim+30 && apple.isContained == null){
+        tail.push(currApple);
+        apple.isContained = true;
+        currApple.timeAjout = Date.now();
+        currApple.obj3D.material.color = new THREE.Color ("green");
+        if (tail.length>2){
+          console.log("follow" + tail.length )
+          apple.position = tail[tail.length-2].obj3D.position
+        }
+      }
+      //Si la tete du serpent touche une pomme apres les 3 secondes de son ajout et qu'elles se colisionnent alors la partie est finie
+      if ( Date.now() - currApple.timeAjout > 3000 && tail.length>5 && snakeHead.position.distanceTo(apple.position) <= dim+30 && tail[0].obj3D!=apple && tail[1].obj3D!=apple){
+        terrain.material.color = new THREE.Color ("red");
+        state = "finish"
+      }
+    }
+
+    ////////////////////////////////////////
+    //  Gravity snake
+    ///////////////////////////////////////
+
+    var currDistance = snakeHead.position.distanceTo(terrain.position);
+    var snake_collision_planete = currDistance < (RADIUS+headRad) ? true : false; 
+    if(snake_collision_planete) {
+        gravity_snake.set(0,0,0);
+        snakeHead.position.setLength(RADIUS+headRad);
+    } else {
+        gravity_snake.add(terrain.position.clone().sub(snakeHead.position).multiplyScalar(COEF_SCALAR*0.5));
+    }
+    snakeHead.velocity.add(gravity_snake)
+
+    ////////////////////////////////////////
+    //  WHEN YOU LOOSE
+    ////////////////////////////////////////
+
+    if (state == "finish"){
+      for (var i = 0; i < tail.length; i ++){
+        var apple = tail[i].obj3D
+        // apple.velocity.add(terrain.position.clone().sub(apple.position).multiplyScalar(-0.1));
+        apple.position.setLength(RADIUS+tail[i].dim*2);
+        // apple.rotation.x += Math.random()*Math.PI
+        // apple.rotation.z += Math.random()*Math.PI
+        // apple.rotation.y += Math.random()*Math.PI
+        apple.velocity.add(terrain.position.clone().sub(apple.position).multiplyScalar(0.1)).multiplyScalar(-0.3+Math.random()*0.05)
+        // if (i>0 && i<tail[i].length){
+        //   apple.velocity.add(terrain.position.clone().sub(tail[i-1].obj3D.position).multiplyScalar(0.1)).multiplyScalar(-0.3+Math.random()*0.05)
+        //   apple.velocity.add(terrain.position.clone().sub(tail[i+1].obj3D.position).multiplyScalar(0.1)).multiplyScalar(-0.3+Math.random()*0.05)
+        // }
+      }
+      tail = []
+    }
+
+    //snakeHead.position.copy(camera.position)
+    // camera.lookAt(new THREE.Vector3())
+
+    // FIRST PERSON
+    camera.position.copy(snakeHead.position);
+    var dist = snakeHead.position.distanceTo(vecOrigin)
+    camera.position.setLength(dist+80);
+
+    camera.lookAt(snakeHead.position);
+    camera.rotation.copy(snakeHead.rotation);
+
+    // --------------------------------
+    //      Stablisation camera
+    //  p = distance du point au centre du repere
+    //  teta = longitude depuis l'axe x
+    //  sigma = latitude depuis le plan equatorial
+    // https://fr.wikipedia.org/wiki/Coordonn%C3%A9es_sph%C3%A9riques
+    // --------------------------------
+    // x = p sin teta cos phi
+    // y = p sin teta sin phi
+    // z = p cos teta
+    //---------------------------------
+    // p    = Math.sqrt (x² + y² + z²)
+    // teta = arccos (z/p)
+    // phi  = arctan (y/x)  
+    // --------------------------------
+    // x = p cos sigma cos teta
+    // y = p cos sigma sin teta 
+    // z = p sin sigma
+    // sigma = PI/2 - phi
+
+    // // smooth camera
+    // var quaternion_save = camera.quaternion.clone()
+    // camera.quaternion.slerp(quaternion_save, 0.90)
+
+    /////////////////////////////////////////////////////
+
+
+    // camera.lookAt(new THREE.Vector3())
+    // camera.position.setLength(800);
+    // camera.lookAt(snakeHead.position)
+
+    // camera.rotation = snakeHead.rotation
+
+    // WHEN TRAP IS ACCELERATOR
+    if (acceleratorTrap) snakeHead.position.setLength(RADIUS + headRad)
+
+    if (acceleratorTrap){
+      var percentFOV = Math.sin(((Date.now() - acceleratorTrapStart)/ACCELERATOR_DURATION)*Math.PI)
+      var coefFOV = 40 * percentFOV  + 90
+      camera.fov = coefFOV
+      camera.updateProjectionMatrix()
+    }
+    else {
+      camera.fov = 90
+      camera.updateProjectionMatrix()
+    }
+    // console.log(camera.fov)
+
+
+    // camera.up.copy(terrain.position.clone().sub(camera.position).normalize())
+    // camera.lookAt(camera.position)
+    //ON APPELLE LA FONCTION D'AFFICHAGE
+    render();
+
+    //ON DEMANDE AU NAVIGATEUR DE RAFRAICHIR LA FENETRE PUIS DE RELANCER "animation()"
+    requestAnimationFrame(animation);
+
+}
+
+  //FONCTION QUI PERMET DE DESSINER LA SCENE DANS LE CANVAS
+  function render(){
+    renderer.render(scene, camera);
+  }
+
+  function toString(e){
+    var propValue;
+    for(var propName in e){
+      propValue = e[propName]
+      console.log(propName, propValue);
+    }
+  }
+
+  //FONCTION APPELEE QUAND ON FAIT UN CLIC GAuCHE
+  function clic_gauche(){
+    console.log('CLIC GAUCHE')
+    var intersect = trouver_object_en_face_camera(appleTab);
+    if (intersect.length>0){
+      console.log("Nombre d'objet en face de la camera :=> ", intersect.length)
+    }
+    for (var i = 0; i<intersect.length ; i++ ){
+      var coupdepied = intersect[i].position.clone().sub(character.position);
+      coupdepied.setLength(20);
+      intersect[i].velocity.add(coupdepied);
+    }
+}
+
+    function effacer() {
+}
+
+
+
+function trouver_object_en_face_camera(tab){
+    var objects_intersectes = [];
+
+    //ON PREPARE NOTRE RAYCASTER
+    var vecteur_direction_camera = new THREE.Vector3();
+
+    //ON LUI DONNE UNE ORIGINE (CELLE DE LA CAMERA)
+    raycaster.ray.origin.copy(camera.position);
+
+    //ON LUI DONNE UNE DIRECTION (CELLE DE LA CAMERA)
+    camera.getWorldDirection(vecteur_direction_camera);
+    raycaster.ray.direction.copy(vecteur_direction_camera);
+
+    //NEAR ET FAR REPRESENTE LA PLUS PETITE ET LA PLUS LONGUE DISTANCE DU RAYCASTER
+    raycaster.near = 0;
+    raycaster.far = 100000000;
+
+    //ON PARCOURT TOUS NOS OBJECTS (DANS LE TABLEAU "OBJECTS"), ET ON TESTE POUR CHACUN S'IL EST EST INTERSECTE PAR LE RAYCASTER
+    for (var i = 0; i < tab.length; i++){
+     // console.log("i: " + i)
+      var object = tab[i];
+      var result_intersection = [];
+      if (object.children.length > 0){
+        for (var j = 0; j < object.children.length; j++){
+          var result_intersection_children = [];
+          object.children[j].raycast(raycaster,result_intersection_children);
+          if (result_intersection_children.length > 0){
+            objects_intersectes.push(result_intersection_children);
+          }
+        }
+      }
+      else{
+        // console.log("je teste")
+          object.raycast(raycaster, result_intersection);
+          //SI "result_intersection" CONTIENT QUELQUE CHOSE, C'EST PARCE QUE L'OBJECT EST INTERSECTE
+          //faites un console.log(result_intersection) pour voir ce qu'il y a dedans.
+          //result_intersection[0].object est l'object intersecté
+          //on a aussi result_intersection[0].distance, result_intersection[0].face, etc...
+        if (result_intersection.length > 0){
+          // var coupdepied = object.position.clone().sub(camera.position);
+          // coupdepied.setLength(20);
+          // object.velocity.add(coupdepied);
+          // // Objet complexe possedant la Mesh de l'objet intersecté
+          // toString(result_intersection[0])
+          
+          // L'objet dans result_intersection est complexe
+          // Il possede differrent attribut. 
+          // Nous avons besoin de la Mesh, elle a la clé object
+          objects_intersectes.push(result_intersection[0].object);
+        }
+      }
+    }
+    // return [];
+    return objects_intersectes;
+  }
+
+</script>
+
+</html>
