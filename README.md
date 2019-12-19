@@ -13,7 +13,7 @@ Let's add an extra dimension to this classic game
 | space bar `_`                   | <img src="https://render.githubusercontent.com/render/math?math=\uparrow" > Jump (stamina at top left window)|
 
 ## The rules : 
-- Catch as many apples as possible ! (Yeah this yellow bubbles)
+- Catch as many apples as possible ! (Yeah these yellow bubbles)
 - Don't eat your own tail (the game will finish)
 
 Watch out for red apples, it doesn't seem harmless at the start of the game
