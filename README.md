@@ -6,8 +6,8 @@ Let's add an extra dimension to this classic game
  ## Snake controls : 
 | Key controls                | description |
 |:--------------------------- | -------------------------------: |  
-| `A` and `E`                 |  <img src="https://render.githubusercontent.com/render/math?math=\rightleftarrows "> Roll axis movements              |	
-| `Q` and `D`                 | <img src="https://render.githubusercontent.com/render/math?math=\circlearrowright ">Left and Right movements         |
+| `A` and `E`                 | <img src="https://render.githubusercontent.com/render/math?math=\circlearrowright ">  Roll axis movements              |	
+| `Q` and `D`                 | <img src="https://render.githubusercontent.com/render/math?math=\rightleftarrows ">Left and Right movements         |
 | mouse `Left` and `Right`    | <img src="https://render.githubusercontent.com/render/math?math=\Updownarrow "> Yaw axis movements               |
 | mouse `up` and `down`       | <img src="https://render.githubusercontent.com/render/math?math=\Leftrightarrow "> Pitch axis movements             |
 | space bar `_`                   | <img src="https://render.githubusercontent.com/render/math?math=\uparrow" > Jump (stamina at top left window)|
