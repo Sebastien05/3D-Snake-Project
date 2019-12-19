@@ -1,5 +1,6 @@
 # 3D snake project 
-![](https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Sphere_wireframe_10deg_10r.svg/600px-Sphere_wireframe_10deg_10r.svg.png =20x20) ![](http://www.iconarchive.com/download/i24292/martin-berube/animal/snake.ico =20x20)
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Sphere_wireframe_10deg_10r.svg/600px-Sphere_wireframe_10deg_10r.svg.png" width="20" height="20"/> 
+<img src="http://www.iconarchive.com/download/i24292/martin-berube/animal/snake.ico" width="20" height="20"/>
 
 ```mardown
 Let's add an extra dimension to this classic game
