@@ -1,5 +1,8 @@
-# 3D snake project ~ let's add an extra dimension to this classic game
+# 3D snake project
 
+```markdown
+let's add an extra dimension to this classic game
+```
 ## Snake controls : 
 | Key controls                | description |
 |:--------------------------- | -------------------------------: |  
