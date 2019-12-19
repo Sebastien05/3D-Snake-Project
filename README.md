@@ -1,7 +1,7 @@
 # 3D snake project
 
-```
-### Let's add an extra dimension to this classic game
+```mardown
+## Let's add an extra dimension to this classic game
 ```
 ## Snake controls : 
 | Key controls                | description |
