@@ -1,6 +1,6 @@
 # 3D snake project
 
-```markdown
+```
 ### Let's add an extra dimension to this classic game
 ```
 ## Snake controls : 
