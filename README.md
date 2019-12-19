@@ -3,8 +3,8 @@
 ## Snake controls : 
 | Key controls                | description |
 |:--------------------------- | -------------------------------: |  
-| `A` and `E`                 |  Roll axis movements              |	
-| `Q` and `D`                 | Left and Right movements         |
+| `A` and `E`                 |  <img src="https://render.githubusercontent.com/render/math?math=\rightleftarrows "> Roll axis movements              |	
+| `Q` and `D`                 | <img src="https://render.githubusercontent.com/render/math?math=\circlearrowright ">Left and Right movements         |
 | mouse `Left` and `Right`    | Yaw axis movements               |
 | mouse `up` and `down`       | Pitch axis movements             |
 | space bar `_`                   | Jump (stamina at top left window)|
@@ -22,8 +22,3 @@ You have to **manage yourself** the `Pitch axis` when turning around the surface
 
 ## Where can you see a draft demo ?
 You can try it at this link : https://3d-snake-project.netlify.com/
-
-
-<img src="https://render.githubusercontent.com/render/math?math=\rightleftarrows "> 
-
-<img src="https://render.githubusercontent.com/render/math?math=\circlearrowright ">
