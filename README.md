@@ -3,8 +3,8 @@
 ```mardown
 ### Let's add an extra dimension to this classic game
 ```
-[!IMPORTANT]
-## Snake controls : 
+> [!IMPORTANT]
+> ## Snake controls : 
 | Key controls                | description |
 |:--------------------------- | -------------------------------: |  
 | `A` and `E`                 |  <img src="https://render.githubusercontent.com/render/math?math=\rightleftarrows "> Roll axis movements              |	
